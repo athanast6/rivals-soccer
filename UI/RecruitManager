@@ -1,0 +1,91 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using System.Threading.Tasks;
+using TMPro;
+
+public class RecruitManager : MonoBehaviour
+{
+    
+    public SoccerPlayer recruit;
+    public PlayerInventory playerInventory;
+    private SquadManager squadManager;
+    private MenuManager menuManager;
+
+
+    private Button recruitButton;
+    private TextMeshProUGUI buttonText;
+
+    [SerializeField] GameObject SquadUI;
+
+    void OnEnable(){
+        
+        
+        ShowRecruitCost();
+
+        
+    }
+    void Awake(){
+        recruitButton = GetComponentInChildren<Button>();
+        buttonText =  recruitButton.GetComponentInChildren<TextMeshProUGUI>();
+        squadManager = FindObjectOfType<SquadManager>();
+        menuManager = FindObjectOfType<MenuManager>();
+        
+    }
+
+    private async void ShowRecruitCost(){
+
+        
+        if(recruit.playerAttributes.isOnTeam || squadManager.players.Count > 5){ return;}
+        
+
+
+        
+        Cursor.lockState = CursorLockMode.Confined;
+        Cursor.visible = true;
+
+        
+        buttonText.text = $"Recruit for {recruit.playerAttributes.recruitCost} coins.";
+        
+        await Task.Delay(5000);
+
+        if(!SquadUI.activeInHierarchy){
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+
+        gameObject.SetActive(false);
+
+
+        
+
+        await Task.CompletedTask;
+        
+    }
+
+    public void OnRecruitClick(){
+
+        if(playerInventory.money < (float)recruit.playerAttributes.recruitCost){
+            Debug.Log("Cant recruit Player.");
+            buttonText.text = $"Not enough coins.";
+            return;
+        }
+
+        //Add player to squad if player has enough coins.
+        
+        recruit.playerAttributes.isOnTeam = true;
+        squadManager.players.Add(recruit.playerAttributes);
+
+        playerInventory.money -= recruit.playerAttributes.recruitCost;
+
+        menuManager.PauseGame();
+
+        SquadUI.SetActive(true);
+
+        gameObject.SetActive(false);
+
+
+        
+    }
+}
