@@ -1,13 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using System.Threading.Tasks;
+using Unity.MLAgents;
 
 public class SoccerGoal : MonoBehaviour
 {  
     //References
     [SerializeField] private SoccerGameManager soccerGameManager;
 
+    [SerializeField] private Agent agent;
 
 
 
@@ -24,10 +25,27 @@ public class SoccerGoal : MonoBehaviour
 
    
 
-    public void ScoredGoal(){
+    public void ScoredGoal(bool isTrainingMode, bool isHomeTeam){
         
+        if(isTrainingMode){
+
+            //Goal Scored
+            if(isHomeTeam == homeGoal){
+                agent.AddReward(5.0f);
+            }
+
+            //Own Goal Scored
+            else if(isHomeTeam != homeGoal){
+                agent.AddReward(-5.0f);
+            }
+
+            return;
+        }
+
+        else{
+            soccerGameManager.GoalScored(homeGoal);
+        }
         
-        soccerGameManager.GoalScored(homeGoal);
     }
 
 

@@ -18,7 +18,25 @@ public class OfferGameUI : MonoBehaviour
     void Awake(){
         uiInteraction = transform.parent.GetComponent<UiInteraction>();
     }
+
+    
     async void OnEnable(){
+
+        uiInteraction.enabled = true;
+
+        await Task.Delay(5000);
+
+        uiInteraction.enabled = false;
+
+
+        UnityEngine.Cursor.lockState = CursorLockMode.Locked;
+        UnityEngine.Cursor.visible = false;
+
+        gameObject.SetActive(false);
+
+
+    }
+        /*
 
         
         offerGameUI = GetComponent<UIDocument>();
@@ -52,8 +70,9 @@ public class OfferGameUI : MonoBehaviour
         UnityEngine.Cursor.lockState = CursorLockMode.Locked;
         UnityEngine.Cursor.visible = false;
     }
+    */
 
-    private void PayReferee(ClickEvent evt){
+    public void PayReferee(){
 
         Debug.Log("Paid ref.");
 

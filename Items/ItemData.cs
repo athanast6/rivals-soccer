@@ -8,7 +8,6 @@ public class ItemData {
     public float saleValue;
     public float purchaseValue;
     public bool canConsume;
-    public float speedBoost;
-    public float boostTime;
+    public float staminaRestoration;
     
 }

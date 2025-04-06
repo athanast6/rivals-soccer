@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEngine.SceneManagement;
-using UnityEditor.UIElements;
 
 public class TrainStationUI : MonoBehaviour
 {
@@ -15,11 +14,11 @@ public class TrainStationUI : MonoBehaviour
     [SerializeField] private Transform Player;
     [SerializeField] private TrainController trainController;
     [SerializeField] private CanvasGroup fadeCanvas;
-
-    private UIDocument trainStationUI;
-    private UiInteraction uiInteraction;
+    [SerializeField] private List<GameObject> DestinationButtons = new List<GameObject>();
+    [SerializeField] private UiInteraction uiInteraction;
 
     [SerializeField] private string[] destinations;
+    [SerializeField] private int[] destinationCosts;
 
     
     private string currentScene;
@@ -27,56 +26,26 @@ public class TrainStationUI : MonoBehaviour
 
     [SerializeField] SaveManager saveManager;
     [SerializeField] PlayerInventory playerInventory;
+    [SerializeField] private GameObject PurchaseButton;
+    [SerializeField] GameObject trainStationUI;
 
 
-    
     void Awake(){
-        uiInteraction = transform.parent.GetComponent<UiInteraction>();
 
         currentScene = SceneManager.GetActiveScene().name;
-    }
-    async void OnEnable(){
-        trainStationUI = GetComponent<UIDocument>();
-
-
-        FindObjectOfType<MenuManager>().PauseGame();
-        
-       
-
-        var closeButton = trainStationUI.rootVisualElement.Q<Button>("ExitButton");
-        closeButton.RegisterCallback<ClickEvent>(CloseStationUI);
-        closeButton.BringToFront();
-
-        var purchaseButton = trainStationUI.rootVisualElement.Q<Button>("PurchaseButton");
-        purchaseButton.RegisterCallback<ClickEvent>(PurchaseTicket);
-        
-        uiInteraction.currentUIDocument = trainStationUI;
 
         ShowStationUI();
-
-
-        await Task.CompletedTask;
     }
-
-    void OnDisable(){
-        FindObjectOfType<MenuManager>().ResumeGame();
-    }
-
-
-    async void ShowStationUI(){
+    private void ShowStationUI(){
         //Go through each button and set it to take the index of the button
         //Then use the index of the button to send the player to another scene
+        for(int i=0;i<DestinationButtons.Count;i++){
+            DestinationButtons[i].SetActive(false);
+        }
 
         for(int i=0;i<destinations.Length;i++){
-            var index = i;
-            var buttonName = "stationButton" + index;
-
-            trainStationUI.rootVisualElement.Q<GroupBox>("stations").Q<Button>(buttonName).text = $"Ticket to {destinations[index]}" + "\n" + " 50 coins"; 
-
-
-            trainStationUI.rootVisualElement.Q<GroupBox>("stations").Q<Button>(buttonName).RegisterCallback<ClickEvent>(ev => ChooseStation(index));
+           DestinationButtons[i].SetActive(true);
         }
-        await Task.CompletedTask;
     }
 
 
@@ -84,33 +53,29 @@ public class TrainStationUI : MonoBehaviour
 
     public async void ChooseStation(int index){
 
-        //Set Purchase Button to show
-        var purchaseButton = trainStationUI.rootVisualElement.Q("PurchaseButton");
-        purchaseButton.style.display = DisplayStyle.Flex;
-
-        //Save index of button.
         destinationIndex = index;
+        
+        if(PurchaseButton != null){ PurchaseButton.SetActive(true);}
+        
+        await Task.Delay(5000);
 
-        await Task.Delay(7000);
-
-        purchaseButton.style.display = DisplayStyle.None;
-
+        if(PurchaseButton != null){PurchaseButton.SetActive(false);}
+        
         await Task.CompletedTask;
     }
 
 
 
-    public async void PurchaseTicket(ClickEvent evt){
+    public async void PurchaseTicket(){
+        //Close Station
+        CloseStationUI();
         trainController.enabled = true;
 
-        playerInventory.money -= 50;
+        playerInventory.money -= destinationCosts[destinationIndex];
 
         //Set player on train.
         PlayerRidingTrain();
         
-
-        await Task.Delay(12500);
-
         await FadeAsync(0,1,2.5f,fadeCanvas);
 
 
@@ -119,17 +84,20 @@ public class TrainStationUI : MonoBehaviour
         SceneManager.LoadSceneAsync(destinationScene);
         SceneManager.UnloadSceneAsync(currentScene);
 
-        //Close Station
-        trainStationUI.gameObject.SetActive(false);
-
         saveManager.SaveGame(destinationScene, destinationIndex);
+
+        
+        
+        await Task.Delay(12500);
+        
+        
 
         await Task.CompletedTask;
 
     }
 
-    private async void PlayerRidingTrain(){
-        Player.GetChild(0).transform.GetComponent<MixamoPlayerController>().playerControls.Disable();
+    private void PlayerRidingTrain(){
+        Player.GetComponentInChildren<MixamoPlayerController>().enabled=false;
 
 
         Player.transform.parent = trainController.gameObject.transform;
@@ -140,14 +108,13 @@ public class TrainStationUI : MonoBehaviour
         
         Player.GetChild(0).transform.GetComponent<Rigidbody>().isKinematic = true;
         Player.GetChild(0).transform.GetComponent<BoxCollider>().enabled = false;
-        
-        await Task.CompletedTask;
     }
 
 
-    async void CloseStationUI(ClickEvent evt){
-        gameObject.SetActive(false);
-        await Task.CompletedTask;
+    public void CloseStationUI(){
+        trainStationUI.SetActive(false);
+        FindObjectOfType<MenuManager>().ResumeGame();
+        
     }
 
 

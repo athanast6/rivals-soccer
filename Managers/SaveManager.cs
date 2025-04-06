@@ -18,7 +18,7 @@ public class SaveManager : MonoBehaviour
 
 
 
-    public InputAction enterButton;
+    //public InputAction enterButton;
     //private Vector2 mouseDirection;
 
 
@@ -48,11 +48,17 @@ public class SaveManager : MonoBehaviour
         public List<ItemData> items = new List<ItemData>();
         public float money;
         public List<PlayerAttributes> squadPlayers = new List<PlayerAttributes>();
+        public List<PlayerAttributes> clubhousePlayers = new List<PlayerAttributes>();
         public int wins,draws,losses;
         public PlayerAttributes playerAttributes;
-        public string sceneName;
+        public string sceneName = "Smalltown";
         public Vector3 playerLocalPosition;
         public string playerName, teamName, teamLocation;
+
+        public List<string> trophiesWon = new List<string>();
+        public List<string> userPacks = new List<string>();
+
+        public bool discoveredTemple = false;
     }
 
     public SaveData saveData = new SaveData();
@@ -92,11 +98,11 @@ public class SaveManager : MonoBehaviour
         if(mainMenuScene){
             
             LoadGameButton.Select();
-            enterButton.Enable();
+            //enterButton.Enable();
 
             //mouseMovement.Enable();
 
-            enterButton.performed += context => EnterButton();
+            //enterButton.performed += context => EnterButton();
             //backButton.performed += context => BackButton();
 
             if(!File.Exists(saveFilePath)){
@@ -104,6 +110,7 @@ public class SaveManager : MonoBehaviour
             }
 
         }else{
+            //enterButton.Disable();
             LoadGame();
         }
             
@@ -118,12 +125,16 @@ public class SaveManager : MonoBehaviour
     //    }
     //}
 
-
+    /*
     void EnterButton(){
-
+        if(!mainMenuScene){
+            return;
+        }
         var selectedButton = EventSystem.current.currentSelectedGameObject.GetComponent<Button>();
         selectedButton.onClick.Invoke();
+        
     }
+    */
 
 
 
@@ -136,20 +147,30 @@ public class SaveManager : MonoBehaviour
         PlayerName.Select();
     }
 
+
+    //Called on user selecting the enter new game button.
     public void EnterInfo(){
         saveData.playerName = PlayerName.text;
         saveData.teamName = TeamName.text;
         saveData.teamLocation = TeamLocation.text;
 
-        saveData.playerAttributes = new PlayerAttributes();
+        saveData.sceneName = "Smalltown";
 
-        saveData.sceneName = "Hometown";
+        saveData.playerAttributes = new PlayerAttributes();
+        saveData.money = 100f;
+
+        saveData.playerLocalPosition = new Vector3(100f,0f,100f);
 
         playerInventory = new PlayerInventory();
 
+        //give player 4 bronze packs.
+        saveData.userPacks.Add("Bronze");
+        saveData.userPacks.Add("Bronze");
+        saveData.userPacks.Add("Bronze");
+        saveData.userPacks.Add("Bronze");
         SaveGame();
 
-        SceneManager.LoadSceneAsync("Hometown");
+        SceneManager.LoadSceneAsync("Smalltown");
 
     }
 
@@ -173,17 +194,24 @@ public class SaveManager : MonoBehaviour
             }
 
 
-
+            //Save squad players
             saveData.squadPlayers.Clear();
             for(int i=0;i<squadManager.players.Count;i++){
                 saveData.squadPlayers.Add(squadManager.players[i]);
             }
 
 
-        } 
-        else saveData.sceneName = "Hometown";
+            //Save clubhouse players
+            saveData.clubhousePlayers.Clear();
+            for(int i=0;i<squadManager.clubhousePlayers.Count;i++){
+                saveData.clubhousePlayers.Add(squadManager.clubhousePlayers[i]);
+            }
 
-        if(scene != null){
+
+        } 
+        
+
+        if(scene != ""){
             saveData.sceneName = scene;
             saveData.playerLocalPosition = trainStationPositions[destinationIndex];
         }
@@ -222,7 +250,7 @@ public class SaveManager : MonoBehaviour
         }
 
         var player =  GameObject.FindGameObjectWithTag("Player").transform.GetChild(0);
-        player.localPosition = saveData.playerLocalPosition;
+        //player.localPosition = saveData.playerLocalPosition;
         player.transform.GetChild(0).gameObject.SetActive(true);
 
 
@@ -245,6 +273,8 @@ public class SaveManager : MonoBehaviour
 
         if(saveData.squadPlayers == null){return;}
 
+
+        //Load Squad Players
         squadManager.players.Clear();
 
         for(int i=0;i<saveData.squadPlayers.Count;i++){
@@ -259,8 +289,21 @@ public class SaveManager : MonoBehaviour
             }
         }
 
+
+        //Load clubhouse players
+        squadManager.clubhousePlayers.Clear();
+
+        for(int i=0;i<saveData.clubhousePlayers.Count;i++){
+
+            squadManager.clubhousePlayers.Add(saveData.clubhousePlayers[i]);
+        }
         
 
         
+    }
+
+
+    public void PlayMultiplayer(string scene){
+        SceneManager.LoadSceneAsync(scene);
     }
 }

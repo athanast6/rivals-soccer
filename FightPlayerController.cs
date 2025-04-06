@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Cinemachine;
-using UnityEditor.Animations;
 
 public class FightPlayerController : MonoBehaviour
 {
@@ -23,7 +22,7 @@ public class FightPlayerController : MonoBehaviour
 
     private CinemachineFreeLook lookCamera;
     private Animator playerAnimator;
-    [SerializeField] private AnimatorController fightAnim;
+    //[SerializeField] private AnimatorController fightAnim;
     private Rigidbody rb;
 
 
@@ -35,7 +34,7 @@ public class FightPlayerController : MonoBehaviour
 
     void OnEnable(){
         playerAnimator = GetComponent<Animator>();
-        playerAnimator.runtimeAnimatorController = fightAnim;
+        //playerAnimator.runtimeAnimatorController = fightAnim;
     }
 
 

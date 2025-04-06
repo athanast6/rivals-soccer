@@ -11,7 +11,7 @@ public class PowerupItem : MonoBehaviour
 
     ParticleSystem particles;
     void Start(){
-        player =GameObject.FindGameObjectWithTag("Player").GetComponentInChildren<MixamoPlayerController>();
+        //player =GameObject.FindGameObjectWithTag("Player").GetComponentInChildren<MixamoPlayerController>();
         particles = GetComponent<ParticleSystem>();
     }
     void OnTriggerEnter(Collider other){
@@ -20,7 +20,7 @@ public class PowerupItem : MonoBehaviour
         other.transform.CompareTag("Away Player")){
             
             
-            ApplyPowerUp(other.transform);
+        ApplyPowerUp(other.transform);
 
             
             
@@ -34,7 +34,7 @@ public class PowerupItem : MonoBehaviour
         particles.Stop();
 
         if(other.TryGetComponent<MixamoPlayerController>(out player)){
-            player.HitPowerup();
+            //player.HitPowerup();
 
         }else if(other.TryGetComponent<EnemyAIController>(out ai)){
             

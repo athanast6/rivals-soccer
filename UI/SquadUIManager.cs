@@ -77,7 +77,7 @@ public class SquadUIManager : MonoBehaviour
 
 
 
-    private void ReleasePlayer(int index){
+    public void ReleasePlayer(int index){
         Debug.Log(index);
 
         squadManager.players[index].isOnTeam = false;

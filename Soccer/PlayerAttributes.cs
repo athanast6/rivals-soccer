@@ -13,6 +13,7 @@ public class PlayerAttributes
     public float clearPower;
     public float shotDistance;
     public float shotAccuracy = 0.5f;
+    public float stamina;
 
     public float runSpeed;
     public float originalRunSpeed;
@@ -22,7 +23,7 @@ public class PlayerAttributes
     public float strikerDistance = 15.0f;
 
     public float passDetectRange;
-    public enum FieldPosition{
+    public enum FieldPosition {
         Striker,
         LeftWing,
         RightWing,

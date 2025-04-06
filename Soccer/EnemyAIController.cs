@@ -47,6 +47,7 @@ public class EnemyAIController : MonoBehaviour
 
 
     //Variables
+    public float groundHeight = 8.55f;
     public bool isHomeTeam;
     public bool closestToBall;
     public bool touchingBall;
@@ -59,6 +60,7 @@ public class EnemyAIController : MonoBehaviour
 
     public float fieldOfView;
 
+    public float staminaRemaining = 99.0f;
 
     
     void Awake(){
@@ -92,10 +94,15 @@ public class EnemyAIController : MonoBehaviour
 
     void OnEnable(){
         GetTeammates();
+
+        staminaRemaining = 99.0f;
         
         animator.SetFloat("LeftRight",0f);
         animator.SetFloat("ForwardBackward",1f);
         InvokeRepeating("MakeDecision",0.0f,0.1f);
+        
+        var staminaTime = (float)(Math.Round((playerAttributes.stamina/10.0f),1));
+        InvokeRepeating("DeductStamina",0.0f,staminaTime);
     }
 
     void OnDisable(){
@@ -107,7 +114,7 @@ public class EnemyAIController : MonoBehaviour
     
     private void Update()
     {
-        
+        if(soccerGameManager.isGoalKick){return;}
         if(touchingBall){
             SelectAction();
             touchingBall = false;
@@ -115,11 +122,10 @@ public class EnemyAIController : MonoBehaviour
         
         if(speed == 0f){animator.SetTrigger("Idle");}
 
-        //animator.SetFloat("LeftRight",0f);
-        //animator.SetFloat("ForwardBackward",1f);
-
-        
-
+        //If the player is closest to the ball.
+        // Set its location to the ball.
+        // With an offset to simulate defense.
+        // Set agents speed to depend on stamina.
         if(closestToBall){
             
             if(soccerGameManager.isGoalKick){
@@ -127,17 +133,7 @@ public class EnemyAIController : MonoBehaviour
                 return;
             }
             
-            var newLocation = new Vector3(ball.position.x,8.55f,ball.position.z);
-
-            //Debug.Log("Setting destination to closest to ball: " + newLocation);
-            agent.SetDestination(newLocation);
-            transform.LookAt(newLocation);
-            animator.SetTrigger("Run");
-
-            
-
-
-            agent.speed = speed;
+            SetClosestToBall();
 
             return;
         }
@@ -164,7 +160,7 @@ public class EnemyAIController : MonoBehaviour
 
             case PlayerAttributes.FieldPosition.RightWing:
                 SetStrikerPosition();
-                    break;
+                break;
 
 
         }
@@ -244,12 +240,14 @@ public class EnemyAIController : MonoBehaviour
         
 
         animator.Play("AI_Tackled1");
-        speed = 0f;
+        agent.speed = 0f;
+        agent.isStopped = true;
 
-        await Task.Delay(3500);
+        await Task.Delay(3000);
     
-        speed = playerAttributes.originalRunSpeed;
-
+        agent.speed = playerAttributes.originalRunSpeed;
+        agent.isStopped = false;
+        
         await Task.CompletedTask;
     }
 
@@ -262,7 +260,6 @@ public class EnemyAIController : MonoBehaviour
         
         if(!closestToBall){return;}
         
-
         
         
         //CHECK CLEAR BALL
@@ -470,13 +467,37 @@ public class EnemyAIController : MonoBehaviour
 
         //If not guarded, touch towards goal.
         if(!isGuarded){
-            //Debug.Log("Touch to goal.");
-            transform.LookAt(attackingGoal);
+            
+            //If striker, defense or center mid, touch towards goal
+            if(playerAttributes.fieldPosition == PlayerAttributes.FieldPosition.Striker
+            || playerAttributes.fieldPosition == PlayerAttributes.FieldPosition.Defense
+            || playerAttributes.fieldPosition == PlayerAttributes.FieldPosition.CenterMid){
+                transform.LookAt(attackingGoal);
+
+                ballRb.velocity = Vector3.zero;
+                ballRb.AddForce(transform.forward * playerAttributes.touchPower,ForceMode.Impulse);
+                return;
+            }
+
+            //If winger, go to corner.
+            else{
+                //Debug.Log("Go to corner.");
+
+                Vector3 nearestCornerPosition;
+                if(transform.localPosition.z >= 0f){
+                    nearestCornerPosition = attackingGoal.position + new Vector3(0f,0f,soccerGameManager.fieldWidth/2.0f);
+                }else{
+                    nearestCornerPosition = attackingGoal.position - new Vector3(0f,0f,soccerGameManager.fieldWidth/2.0f);
+                }
+
+                transform.LookAt(nearestCornerPosition);
+                ballRb.velocity = Vector3.zero;
+                ballRb.AddForce(transform.forward * playerAttributes.touchPower,ForceMode.Impulse);
+                return;
+            }
             
             
-            ballRb.velocity = Vector3.zero;
-            ballRb.AddForce(transform.forward * playerAttributes.touchPower,ForceMode.Impulse);
-            return;
+            
         }
 
         //If almost out of bounds, touch towards center of field
@@ -575,10 +596,14 @@ public class EnemyAIController : MonoBehaviour
         ballRb.velocity = Vector3.zero;
         ballRb.angularVelocity = Vector3.zero;
 
-        var force = (transform.forward + (0.2f * transform.up) + new Vector3(0f,0f,UnityEngine.Random.Range(-0.3f,0.3f)))*(playerAttributes.shotPower)*(UnityEngine.Random.Range(0.5f,1.0f));
+
+        //Smaller accuracy value equals better shot
+        var shotVector = new Vector3(0f,0f,UnityEngine.Random.Range(-playerAttributes.shotAccuracy,playerAttributes.shotAccuracy));
+
+        var force = (transform.forward + (0.2f * transform.up) + shotVector)*(playerAttributes.shotPower)*(UnityEngine.Random.Range(0.5f,0.8f));
         ballRb.AddForce(force,ForceMode.Impulse);
 
-        Debug.Log(force);
+        //Debug.Log(force);
 
 
         UpdateShotSlider(0.9f);
@@ -748,23 +773,32 @@ public class EnemyAIController : MonoBehaviour
 
 
 
-
+    /// <summary>
+    /// Sets the position of an attacking player,
+    /// if the player is not closest to the goal.
+    /// </summary>
     private void SetStrikerPosition(){
 
 
         //ATTACK:
-        //if ball closer to attack goal.
-        if(Vector3.Distance(ball.position,attackingGoal.position) <= Vector3.Distance(ball.position,defendingGoal.position)){
+
+        //If ball closer to attack goal.
+
+        if(Vector3.Distance(ball.position,attackingGoal.position) - 5.0f <= Vector3.Distance(ball.position,defendingGoal.position)){
 
 
             //If ball wide
-            if(ball.localPosition.x < -(soccerGameManager.fieldWidth/2.0f) + 2.0f*playerAttributes.spacingDistance || ball.localPosition.x > (soccerGameManager.fieldWidth/2.0f) - 2.0f*playerAttributes.spacingDistance){
-            //if(ball.transform.localPosition.x < -30.0f){
+            if(ball.localPosition.x < -(soccerGameManager.fieldWidth/2.0f) || ball.localPosition.x > (soccerGameManager.fieldWidth/2.0f)){
+                //Debug.Log("Ball is wide");
+                //if(ball.transform.localPosition.x < -30.0f){
 
                 //Stay Central
                 //var setDes = ((attackingGoal.position - defendingGoal.position).normalized * 20.0f) - new Vector3(0f,0f,(attackingGoal.position - ball.position).normalized.x * 20.0f);
                 //agent.SetDestination(ball.transform.position + new Vector3(spacingDistance,0f,0f));
-                var setDes = new Vector3(0f,0f,attackingGoal.position.z) + new Vector3(ball.position.x,0f,0f);
+                var setDes = attackingGoal.position
+                    + ((attackingGoal.position + defendingGoal.position).normalized * 10f)
+                    + new Vector3(ball.position.x,0f,0f)
+                    + new Vector3(UnityEngine.Random.Range(-10.0f,10.0f),0f,UnityEngine.Random.Range(-10.0f,10.0f));
                 agent.SetDestination(setDes);
 
                 if(agent.remainingDistance !=0f){
@@ -790,10 +824,16 @@ public class EnemyAIController : MonoBehaviour
                 .ToList()[1];
 
                 if((attackingGoal.position - ball.position).x < 0){
-                    var setDes = lastDefender.transform.position + new Vector3(0f,0f,playerAttributes.spacingDistance);
+                    var setDes = attackingGoal.position
+                    + ((attackingGoal.position + defendingGoal.position).normalized * 10f)
+                    + new Vector3(0f,0f,playerAttributes.spacingDistance)
+                    + new Vector3(UnityEngine.Random.Range(-5f,5f),0f,UnityEngine.Random.Range(-5f,5f));
+
+                    //setDes.clamp(fieldwidth, fieldlength)
+
                     agent.SetDestination(setDes);
                 }else{
-                    var setDes = lastDefender.transform.position - new Vector3(0f,0f,playerAttributes.spacingDistance);
+                    var setDes = lastDefender.transform.position - new Vector3(0f,0f,playerAttributes.spacingDistance) + new Vector3(UnityEngine.Random.Range(-5f,5f),0f,UnityEngine.Random.Range(-5f,5f));
                     agent.SetDestination(setDes);
                 }
                 
@@ -870,8 +910,34 @@ public class EnemyAIController : MonoBehaviour
     }
 
 
+    private void SetClosestToBall(){
+            
+        var vectorToBall = (ball.transform.position - transform.position).normalized;
+        var newLocation = new Vector3(ball.position.x + vectorToBall.x,groundHeight,ball.position.z + vectorToBall.z);
+
+        
+        agent.SetDestination(newLocation);
+        transform.LookAt(newLocation);
+        animator.SetTrigger("Run");
+
+        agent.speed = speed * (staminaRemaining/100.0f);
+
+        //TRY BICYCLE KICK IF BALL IS CLOSE AND IN AIR
+        if(ball.localPosition.y >= 3.0f && (Vector3.Distance(ball.transform.position, transform.position) < 5.0f)){
+            agent.speed = 0f;
+            aiRb.AddForce(Vector3.up * 3.0f, ForceMode.Impulse);
+            animator.Play("ScissorKick");
+        }
+    }
+
+
     private void UpdateShotSlider(float power){
         if(ShotPowerSlider == null){return;}
         ShotPowerSlider.value = power;
+    }
+
+
+    private void DeductStamina(){
+        staminaRemaining -= 0.5f;
     }
 }

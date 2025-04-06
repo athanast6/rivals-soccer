@@ -13,22 +13,22 @@ public class ItemManager : MonoBehaviour
 
 
 
-
+    //Placed at center of world
     [SerializeField] private Transform itemsEmpty;
 
     public float worldRadius;
-    public Vector3 worldCenter;
+    //public Vector3 worldCenter;
 
     void Start(){
-        for(int i = 0; i<5;i++){
+        for(int i = 0; i<10;i++){
             SpawnItem();
         }
-        InvokeRepeating("SpawnItem",120.0f,60.0f);
+        InvokeRepeating("SpawnItem",60.0f,60.0f);
     }
     void SpawnItem(){
     
-        if(itemsEmpty.childCount>20){return;}
-        var spawnPoint = worldCenter + new Vector3(Random.Range(-worldRadius,worldRadius),0.0f,Random.Range(-worldRadius,worldRadius));
+        if(itemsEmpty.childCount>40){return;}
+        var spawnPoint = itemsEmpty.transform.position + new Vector3(Random.Range(-worldRadius,worldRadius),20.0f,Random.Range(-worldRadius,worldRadius));
 
         RaycastHit hit;
         if(Physics.Raycast(spawnPoint,Vector3.down,out hit,100.0f)){

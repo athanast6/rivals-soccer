@@ -7,9 +7,8 @@ using UnityEngine.UIElements;
 
 public class MenuManager : MonoBehaviour
 {
-
     [SerializeField] private GameObject PauseMenuUI;
-    private UIDocument pauseMenu;
+    [SerializeField] private PauseManager pauseManager;
     [SerializeField] private MixamoPlayerController playerController;
 
     [SerializeField] private UiInteraction uiInteraction;
@@ -18,16 +17,37 @@ public class MenuManager : MonoBehaviour
 
     public SaveManager saveManager;
 
+    public bool isPaused;
 
-    
+
+    public static MenuManager Instance { get; private set; }
+
+    private void Awake()
+    {
+        // Singleton pattern
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
 
     void Start(){
 
-        pauseMenu = PauseMenuUI.transform.GetComponent<UIDocument>();
+        
         saveManager=FindObjectOfType<SaveManager>();
         PlayPause.Enable();
         PlayPause.performed += context => TogglePause();
         
+    }
+
+    
+
+    void OnDisable(){
+
+        PlayPause.Disable();
     }
 
 
@@ -47,9 +67,11 @@ public class MenuManager : MonoBehaviour
 
 
     public void PauseGame(){
+
+        isPaused = true;
         
-        UnityEngine.Cursor.lockState = CursorLockMode.None;
-        UnityEngine.Cursor.visible = true;
+        //UnityEngine.Cursor.lockState = CursorLockMode.None;
+        //UnityEngine.Cursor.visible = true;
 
         playerController.playerControls.Disable();
 
@@ -58,16 +80,21 @@ public class MenuManager : MonoBehaviour
         Time.timeScale = 0f;
 
         PauseMenuUI.SetActive(true);
+        
+        pauseManager.ShowPauseMenu();
+
     }
 
     public void ResumeGame(){
 
-        UnityEngine.Cursor.lockState = CursorLockMode.Locked;
-        UnityEngine.Cursor.visible = false;
+        isPaused = false;
+
+        //UnityEngine.Cursor.lockState = CursorLockMode.Locked;
+        //UnityEngine.Cursor.visible = false;
 
         playerController.playerControls.Enable();
 
-        uiInteraction.enabled = false;
+        //uiInteraction.enabled = false;
 
         PauseMenuUI.SetActive(false);
 
@@ -77,6 +104,25 @@ public class MenuManager : MonoBehaviour
     public void QuitGame(){
         saveManager.SaveGame();
         Application.Quit();
+    }
+
+
+    public void ShowCursor()
+    {
+        UnityEngine.Cursor.visible = true;
+        UnityEngine.Cursor.lockState = CursorLockMode.None;
+    }
+
+    public void HideCursor()
+    {
+        UnityEngine.Cursor.visible = false;
+        UnityEngine.Cursor.lockState = CursorLockMode.Locked;
+    }
+
+    public void ConfineCursor()
+    {
+        UnityEngine.Cursor.visible = true;
+        UnityEngine.Cursor.lockState = CursorLockMode.Confined;
     }
 
 

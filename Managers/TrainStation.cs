@@ -23,6 +23,8 @@ public class TrainStation : MonoBehaviour
             
             TrainStationUI.SetActive(true);
 
+            
+            FindObjectOfType<MenuManager>().PauseGame();
 
             Player.GetComponentInChildren<MixamoPlayerController>().playerControls.Disable();
             

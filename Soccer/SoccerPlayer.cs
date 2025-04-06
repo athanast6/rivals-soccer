@@ -3,21 +3,22 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.UI;
 using System.Threading.Tasks;
-using UnityEngine.UIElements;
+using UnityEngine.UI;
 
 public class SoccerPlayer : MonoBehaviour
 {
 
     //References
-    [SerializeField] private RecruitUI recruitUI;
+    [SerializeField] private SquadManager squadManager;
     [SerializeField] private GameObject NPC_Canvas;
+    [SerializeField] private UiInteraction uiInteraction;
     private Rigidbody rb;
     private GameObject GreetingText;
-
     private Animator animator;
     private NavMeshAgent agent;
-    private Vector3 startPosition;
 
+
+    private Vector3 startPosition;
     public PlayerAttributes playerAttributes;
 
 
@@ -57,12 +58,13 @@ public class SoccerPlayer : MonoBehaviour
         if(other.gameObject.CompareTag("Home Player")){
 
             StopNPC(other.transform);
-            RecruitToSquad();
+            squadManager.RecruitToSquad(this);
             DisplayGreeting();
 
            
         }
     }
+
 
     private void StopNPC(Transform Player){
         agent.ResetPath();
@@ -77,16 +79,7 @@ public class SoccerPlayer : MonoBehaviour
 
 
 
-    private void RecruitToSquad(){
-
-        if(playerAttributes.isOnTeam){return;}
-        recruitUI.recruit = this;
-
-        //Show the ui panel for options to recruit him to squad.
-        recruitUI.gameObject.SetActive(true);
-        
-
-    }
+    
 
 
     

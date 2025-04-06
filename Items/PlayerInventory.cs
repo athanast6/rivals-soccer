@@ -9,10 +9,14 @@ using UnityEngine.UIElements;
 public class PlayerInventory : MonoBehaviour
 {
 
-    [SerializeField] GameObject InventoryUI;
+    [SerializeField] private MixamoPlayerController playerController;
+    [SerializeField] private PauseManager pauseManager;
+    [SerializeField] private Transform inventoryItems;
+
+
+
 
     public List<ItemData> items = new List<ItemData>();
-    public InputAction openInventory;
     private CinemachineFreeLook cameraPanning;
 
 
@@ -23,9 +27,6 @@ public class PlayerInventory : MonoBehaviour
         
         cameraPanning = transform.GetComponentInChildren<CinemachineFreeLook>();
 
-        
-        openInventory.performed += context => ToggleInventory();
-        openInventory.Enable();
     }
     
     
@@ -49,36 +50,22 @@ public class PlayerInventory : MonoBehaviour
     }
 
 
-    public void ToggleInventory(){
-        if(!InventoryUI){
 
-            ShowInventory();
-
-        }else{
-            InventoryUI.SetActive(false);
-            UnityEngine.Cursor.lockState = CursorLockMode.Locked;
-            UnityEngine.Cursor.visible = false;
-
-            cameraPanning.enabled = true;
+    public void TryConsumeItem(int index){
+        if(items[index].canConsume == false){
+            return;
         }
-        
-    }
+        if(playerController.staminaRemaining < 100){
+            playerController.staminaRemaining += items[index].staminaRestoration;
 
-    private void ShowInventory(){
-        InventoryUI.SetActive(true);
+            //Limit to 100 stamina.
+            playerController.staminaRemaining = Mathf.Clamp(playerController.staminaRemaining,0f,100f);
+            Debug.Log($"Player ate {items[index].itemName} and gained {items[index].staminaRestoration}.");
 
-        UnityEngine.Cursor.lockState = CursorLockMode.None;
-        UnityEngine.Cursor.visible = true;
+            items.RemoveAt(index);
 
-        cameraPanning.enabled = false;
-
-        //PopulateItems();
-    }
-
-    private void PopulateItems(){
-        for(int i=0;i<items.Count;i++){
-            //itemSlots.GetChild(i).SetActive(true);
-
+            //Update UI
+            pauseManager.ShowPauseMenu();
         }
     }
 }

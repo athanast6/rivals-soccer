@@ -16,11 +16,11 @@ public class SoccerGameMap : MonoBehaviour
     [SerializeField] private GameObject Field;
 
 
-    private GameObject UserPlayer;
+    [SerializeField] private List<GameObject> UserPlayers;
 
     void OnEnable(){
 
-        UserPlayer=GameObject.FindGameObjectWithTag("Home Player");
+        //UserPlayer=GameObject.FindGameObjectWithTag("Home Player");
         InvokeRepeating("UpdateMiniMap",3.0f,0.05f);
     }
 
@@ -33,7 +33,7 @@ public class SoccerGameMap : MonoBehaviour
         //Debug.Log(Field.transform.position + " Field Position");
         //Debug.Log(UserPlayer.transform.position + " Field Position");
 
-        for(int i=0;i<awayIcons.Count;i++){
+        for(int i=0;i<awayIcons.Count - 1;i++){
             awayIcons[i].transform.localPosition = new Vector3(awayPlayers[i].transform.localPosition.x,awayPlayers[i].transform.localPosition.z,0f) * (-1.15f);
         }
 
@@ -41,9 +41,17 @@ public class SoccerGameMap : MonoBehaviour
             homeIcons[i].transform.localPosition = new Vector3(homePlayers[i].transform.localPosition.x,homePlayers[i].transform.localPosition.z,0f) * (-1.15f);
         }
 
-        //The last home icon will be used for the user player
-        var userPosition = new Vector3(Field.transform.position.x - UserPlayer.transform.position.x,Field.transform.position.z - UserPlayer.transform.position.z,0f) * 1.15f;
-        homeIcons[homeIcons.Count-1].transform.localPosition = userPosition;
+        //The last home icons will be used for the user players
+        for(int i=0;i<UserPlayers.Count;i++){
+            var userPosition = new Vector3(Field.transform.position.x - UserPlayers[i].transform.position.x,Field.transform.position.z - UserPlayers[i].transform.position.z,0f) * 1.15f;
+            //homeIcons[homeIcons.Count-1].transform.localPosition = userPosition;
+            if(i==0){
+                homeIcons[homeIcons.Count-1].transform.localPosition = userPosition;
+            }
+            else if(i==1){
+                awayIcons[awayIcons.Count-1].transform.localPosition = userPosition;
+            }
+        }
 
         await Task.CompletedTask;
     }

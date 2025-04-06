@@ -16,7 +16,11 @@ public class SoccerGameManager : MonoBehaviour
 {   
     //References
     //public List<OnlinePlayerController> UserPlayers;
-    private MixamoPlayerController Player;
+    private MenuManager menuManager;
+    //Multiplayer: Need to change to an array of players.
+    [SerializeField] private MixamoPlayerController Player;
+    public bool multiplayerMode;
+    [SerializeField] private List<MixamoPlayerController> multiplayers;
     private PlayerInventory playerInventory;
     private SquadManager squadManager;
     private SaveManager saveManager;
@@ -46,8 +50,9 @@ public class SoccerGameManager : MonoBehaviour
 
 
     [SerializeField] private GameObject SoccerGameUI, OfferGameUI, ResultUI;
+    private TextMeshProUGUI offerGameText;
     [SerializeField] private TextMeshProUGUI homeScoreText, awayScoreText, timeLeftText, resultText, activePlayerText, goalScoredText;
-    [SerializeField] private GameObject HomePlayers, AwayPlayers;
+    [SerializeField] public GameObject HomePlayers, AwayPlayers;
     [SerializeField] private List<GameObject> GoalScoredFX = new List<GameObject>();
     public GameObject Fences;
     public GameObject PassingToPlayer;
@@ -75,6 +80,7 @@ public class SoccerGameManager : MonoBehaviour
     public bool homeTeamAttacking = false;
     public bool goalieHasBall;
     public bool isGoalKick;
+    public bool isThrowIn;
 
     public GameObject CurrentGoalie;
     public float fieldWidth;
@@ -92,11 +98,26 @@ public class SoccerGameManager : MonoBehaviour
     public string lastToTouchBall;
     public List<string> goalsScored;
 
+    public Vector3 gameCameraPosition;
+
+    [SerializeField] GameObject Boundaries;
+
+
+    public enum GameState{
+        Normal,
+        GoalKick,
+        ThrowIn,
+        Corner
+    }
+
 
 
 
 
     void Start(){
+        transform.GetComponent<PackManager>().GivePack("Gold");
+
+        menuManager = GetComponent<MenuManager>();
 
         town = GameObject.FindGameObjectsWithTag("Town").ToList();
 
@@ -107,10 +128,11 @@ public class SoccerGameManager : MonoBehaviour
 
         ballRb = Ball.transform.GetComponent<Rigidbody>();
 
-        Player = GameObject.FindGameObjectWithTag("Player").transform.GetComponentInChildren<MixamoPlayerController>();
         playerInventory = Player.transform.GetComponent<PlayerInventory>();
 
         resultText = ResultUI.GetComponentInChildren<TextMeshProUGUI>();
+
+        offerGameText = OfferGameUI.GetComponentInChildren<TextMeshProUGUI>();
 
 
         //InvokeRepeating("CheckClosestToBall",0f,0.1f);
@@ -246,12 +268,20 @@ public class SoccerGameManager : MonoBehaviour
         
         
         for(int i=0;i<enemyPlayers.Count;i++){
-            enemyPlayers[i].enabled = canMove;
-            var agent=enemyPlayers[i].transform.GetComponent<NavMeshAgent>();
+            Debug.Log("Enemy Player " + i + ". " + enemyPlayers[i]);
+            var controller = enemyPlayers[i].GetComponent<MixamoPlayerController>();
 
-            if(agent.enabled){agent.SetDestination(agent.transform.position);}
+            if (controller != null && controller.isActiveAndEnabled){}
+
+            else{
+                enemyPlayers[i].enabled = canMove;
+                var agent=enemyPlayers[i].transform.GetComponent<NavMeshAgent>();
+
+                if(agent.enabled && agent.gameObject.activeInHierarchy){agent.SetDestination(agent.transform.position);}
+                
+                agent.enabled = canMove;
+            }
             
-            agent.enabled = canMove;
         }
         for(int i=0;i<friendlyPlayers.Count;i++){
 
@@ -261,7 +291,7 @@ public class SoccerGameManager : MonoBehaviour
                 friendlyPlayers[i].enabled = canMove;
                 var agent=friendlyPlayers[i].transform.GetComponent<NavMeshAgent>();
                 
-                if(agent.enabled){agent.SetDestination(agent.transform.position);}
+                if(agent.enabled && agent.gameObject.activeInHierarchy){agent.SetDestination(agent.transform.position);}
 
                 agent.enabled = canMove;
             }
@@ -279,10 +309,14 @@ public class SoccerGameManager : MonoBehaviour
         }
         for(int i=0;i<friendlyPlayers.Count;i++){
             friendlyPlayers[i].transform.localPosition =  Vector3.zero + new Vector3(30.0f,-0.68f,UnityEngine.Random.Range(-20.0f,20.0f));
+
+            if(friendlyPlayers[i].transform.GetComponent<MixamoPlayerController>().isActiveAndEnabled){
+                friendlyPlayers[i].transform.position = Field.transform.position + new Vector3(30.0f,0f,UnityEngine.Random.Range(-20.0f,20.0f));
+            }
             
         }
-
-        Player.transform.position = Field.transform.position + new Vector3(30.0f,0f,UnityEngine.Random.Range(-20.0f,20.0f));
+        
+        
 
         //if(UserPlayers.Count == 2){
         //    UserPlayers[1].transform.position = Field.transform.position + new Vector3(-30.0f,0f,UnityEngine.Random.Range(-20.0f,20.0f));
@@ -320,14 +354,26 @@ public class SoccerGameManager : MonoBehaviour
         //    friendlyPlayers[3].gameObject.SetActive(false);
         //}
         
-        Player.GetComponent<MixamoPlayerController>().isPlayingGame = true;
+        if(multiplayerMode){
+            for(int i=0; i<multiplayers.Count;i++){
+                multiplayers[i].GetComponent<MixamoPlayerController>().StartSoccerGame();
+                multiplayers[i].gameObject.transform.GetChild(0).gameObject.SetActive(false);
+            }
+        }else{
+            Player.GetComponent<MixamoPlayerController>().StartSoccerGame();
+            Player.gameObject.transform.GetChild(0).gameObject.SetActive(false);
+        }
+        
         //Change camera
-        Player.gameObject.transform.GetChild(0).gameObject.SetActive(false);
+        
         GameCamera.SetActive(true);
+
+        //Set Camera Height
+        GameCamera.transform.localPosition = gameCameraPosition;
 
         ToggleTown(false);
 
-        saveManager.SaveGame();
+        if(!multiplayerMode) saveManager.SaveGame();
 
         Npcs.SetActive(false);
         Fences.SetActive(true);
@@ -347,6 +393,8 @@ public class SoccerGameManager : MonoBehaviour
 
         ResetScoreboard();
 
+        UpdatePlayerUI(saveManager.saveData.playerName);
+
         //Fade in
 
         //Start countdown
@@ -360,6 +408,11 @@ public class SoccerGameManager : MonoBehaviour
 
         HomePlayers.SetActive(true);
         AwayPlayers.SetActive(true);
+
+        enemyGoalie.transform.localPosition = new Vector3(-85.9f,-0.69f,2.93f);
+        friendlyGoalie.transform.localPosition = new Vector3(62.2f,-0.69f,2.17f);
+
+        GameObject.FindWithTag("Play Game").SetActive(false);
 
         InvokeRepeating("CheckClosestToBall",0f,0.05f);
         
@@ -390,12 +443,16 @@ public class SoccerGameManager : MonoBehaviour
         
         while(secondsLeft>0){
 
-            await Task.Delay(1000);
+            
+                await Task.Delay(1000);
+                if(menuManager.isPaused == false){
+                    secondsLeft--; 
 
-            secondsLeft--; 
+                    var timeAmount = TimeSpan.FromSeconds(secondsLeft);
+                    timeLeftText.text = timeAmount.ToString(@"m\:ss");
+                }      
 
-            var timeAmount = TimeSpan.FromSeconds(secondsLeft);
-            timeLeftText.text = timeAmount.ToString(@"m\:ss");
+            
         }
 
         EndGame();
@@ -420,12 +477,20 @@ public class SoccerGameManager : MonoBehaviour
         CancelInvoke("CheckClosestToBall");
 
         for(int i=0;i<enemyPlayers.Count;i++){
-            enemyPlayers[i].transform.GetComponent<NavMeshAgent>().isStopped = true;
+            NavMeshAgent cur_agent;
+            enemyPlayers[i].transform.TryGetComponent<NavMeshAgent>(out cur_agent);
+            if(cur_agent.isActiveAndEnabled){
+                cur_agent.isStopped = true;
+            }
+            
         }
-        for(int i=0;i<friendlyPlayers.Count;i++){
-            friendlyPlayers[i].transform.GetComponent<MixamoPlayerController>().DisablePlayer();
-            friendlyPlayers[i].transform.GetComponent<NavMeshAgent>().isStopped = true;
-        }
+        //for(int i=0;i<friendlyPlayers.Count;i++){
+        //    if(friendlyPlayers[i].transform != Player.transform){
+                //friendlyPlayers[i].transform.GetComponent<MixamoPlayerController>().DisablePlayer();
+                //friendlyPlayers[i].transform.GetComponent<NavMeshAgent>().isStopped = true;
+        //    }
+            
+        // }
 
 
 
@@ -449,12 +514,18 @@ public class SoccerGameManager : MonoBehaviour
         Player.gameObject.transform.GetChild(0).gameObject.SetActive(true);
         GameCamera.SetActive(false);
 
-        Player.GetComponent<MixamoPlayerController>().enabled = true;
-        Player.GetComponent<MixamoPlayerController>().isPlayingGame = false;
+        //Player.GetComponent<MixamoPlayerController>().enabled = true;
+        if(multiplayerMode){
+            for(int i=0; i<multiplayers.Count;i++){
+                multiplayers[i].GetComponent<MixamoPlayerController>().EndSoccerGame();
+            }
+        }else{
+            Player.GetComponent<MixamoPlayerController>().EndSoccerGame();
+        }
 
 
         //Change Players
-        Player.EnablePlayer(Player.transform);
+        //Player.EnablePlayer(Player.transform);
         
 
         SoccerGameUI.SetActive(false);
@@ -463,7 +534,9 @@ public class SoccerGameManager : MonoBehaviour
 
         Npcs.SetActive(true);
 
-        saveManager.SaveGame();
+        if(!multiplayerMode) saveManager.SaveGame();
+
+        GameObject.FindWithTag("Play Game").SetActive(true);
 
         
         await Task.CompletedTask;
@@ -495,6 +568,10 @@ public class SoccerGameManager : MonoBehaviour
 
             saveManager.saveData.wins +=1;
 
+            if(saveManager.saveData.wins == 1){
+                transform.GetComponent<PackManager>().GivePack("Gold");
+            }
+
         }else if((!isHomeTeam && homeScore > awayScore)
         || (isHomeTeam && awayScore > homeScore)){
             resultText.text = $"Defeat. \n Won {loserCoins} coins.";
@@ -503,6 +580,9 @@ public class SoccerGameManager : MonoBehaviour
             saveManager.saveData.losses +=1;
 
         }
+
+        transform.GetComponent<PackManager>().GivePack("Gold");
+            
 
         var canvasGroup = resultText.GetComponent<CanvasGroup>();
 
@@ -534,17 +614,22 @@ public class SoccerGameManager : MonoBehaviour
             gamePrice = referee.gamePrice;
             OfferGameUI.SetActive(true);
 
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+
+            offerGameText.text = $"Play Game For {referee.gamePrice} Coins.";
+
+            //Cursor.lockState = CursorLockMode.Confined;
+            //Cursor.visible = true;
+            MenuManager.Instance.ShowCursor();
             //Mouse.current.WarpCursorPosition(new Vector2(960f,100f));
         }
 
-        await Task.Delay(5000);
+        //await Task.Delay(5000);
 
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        //Cursor.lockState = CursorLockMode.Locked;
+        //Cursor.visible = false;
+        MenuManager.Instance.HideCursor();
 
-        OfferGameUI.SetActive(false);
+        //OfferGameUI.SetActive(false);
 
         referee.transform.GetChild(0).transform.GetChild(1).gameObject.SetActive(false);
 
@@ -615,6 +700,11 @@ public class SoccerGameManager : MonoBehaviour
 
 
     public async void GoalKick(){
+
+        isGoalKick = true;
+
+        await Task.Delay(3000);
+        Ball.SetActive(false);
         
         var friendlyDistance = Vector3.Distance(Ball.transform.position,friendlyGoalie.transform.position);
         var enemyDistance = Vector3.Distance(Ball.transform.position,enemyGoalie.transform.position);
@@ -635,13 +725,13 @@ public class SoccerGameManager : MonoBehaviour
 
         Debug.Log(CurrentGoalie);
 
-        Ball.SetActive(false);
+        
         
         var curGoalControl = CurrentGoalie.GetComponent<GoalieController>();
         curGoalControl.GoalKickColliders.SetActive(true);
         
         
-        isGoalKick = true;
+        
 
 
         //If user is home team, set hometeamattacking false
@@ -652,9 +742,12 @@ public class SoccerGameManager : MonoBehaviour
         }
 
         var activePlayer = Player.GetComponentInChildren<MixamoPlayerController>();
-        activePlayer.GetComponent<EnemyAIController>().enabled = true;
-        activePlayer.GetComponent<NavMeshAgent>().enabled = true;
-        activePlayer.enabled = false;
+        if(!multiplayerMode){
+            activePlayer.GetComponent<EnemyAIController>().enabled = true;
+            activePlayer.GetComponent<NavMeshAgent>().enabled = true;
+            activePlayer.enabled = false;
+        }
+        
     
        
 
@@ -693,9 +786,12 @@ public class SoccerGameManager : MonoBehaviour
 
         await Task.Delay(2000);
 
-        activePlayer.GetComponent<EnemyAIController>().enabled = false;
-        activePlayer.GetComponent<NavMeshAgent>().enabled = false;
-        activePlayer.enabled = true;
+        if(!multiplayerMode){
+            activePlayer.GetComponent<EnemyAIController>().enabled = false;
+            activePlayer.GetComponent<NavMeshAgent>().enabled = false;
+            activePlayer.enabled = true;
+        }
+        
 
        
 
@@ -707,10 +803,57 @@ public class SoccerGameManager : MonoBehaviour
         await Task.CompletedTask;
     }
 
+
+    /// <summary>
+    /// Called when ball goes across touch line.
+    /// Pause players momentarily.
+    /// Send Nearest Player To Ball. (from opposing team as last to touch ball).
+    /// Make Them throw it in.
+    /// Or Allow the user to throw in.
+    /// </summary>
+    /// <param name="playerName"></param>
+    public async void ThrowIn(Vector3 ballPositionForThrowIn){
+
+        PausePlayers(false);
+
+        Player.playerControls.Disable();
+
+        //Temporarily disable the sidelines.
+        Boundaries.SetActive(false);
+
+        await Task.Delay(2500);
+
+        ballRb.transform.localPosition = new Vector3(ballPositionForThrowIn.x,0f,ballPositionForThrowIn.z) + new Vector3(0f,0f,1.0f);
+
+        for(int i=0;i<friendlyPlayers.Count;i++){
+            if(friendlyPlayers[i].closestToBall){
+                friendlyPlayers[i].transform.position = ballRb.transform.position + new Vector3(-3.0f,0f,0f);
+            }
+        }
+
+        
+       
+        
+        ballRb.velocity = Vector3.zero;
+
+        await Task.Delay(2000);
+        
+        Player.playerControls.Enable();
+
+        //wait for ball to get thrown in
+        await Task.Delay(1000);
+
+        PausePlayers(true);
+
+        Boundaries.SetActive(true);
+
+        await Task.CompletedTask;
+    }
+
     
 
-    public async void UpdatePlayerUI(EnemyAIController player){
-        activePlayerText.text = player.playerAttributes.playerName;
+    public async void UpdatePlayerUI(string playerName){
+        activePlayerText.text = playerName;
         await Task.CompletedTask;
         
     }

@@ -1,4 +1,4 @@
-using Mono.Cecil.Cil;
+//using Mono.Cecil.Cil;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -7,11 +7,12 @@ public class PauseMenuUI: MonoBehaviour
     // Reference to the pause menu script
     public MenuManager menuManager;
     public UiInteraction uiInteraction;
-    private UIDocument pauseMenu;
+    private GameObject pauseMenu;
 
 
     void OnEnable()
     {
+        /*
         pauseMenu = GetComponent<UIDocument>();
         
         uiInteraction.currentUIDocument = pauseMenu;
@@ -31,6 +32,7 @@ public class PauseMenuUI: MonoBehaviour
         {
             quitButton.RegisterCallback<ClickEvent>(ev => QuitGame());
         }
+        */
     }
 
     // Function to resume the game
