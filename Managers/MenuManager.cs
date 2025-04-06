@@ -72,6 +72,7 @@ public class MenuManager : MonoBehaviour
         
         //UnityEngine.Cursor.lockState = CursorLockMode.None;
         //UnityEngine.Cursor.visible = true;
+        ShowCursor();
 
         playerController.playerControls.Disable();
 
@@ -91,6 +92,7 @@ public class MenuManager : MonoBehaviour
 
         //UnityEngine.Cursor.lockState = CursorLockMode.Locked;
         //UnityEngine.Cursor.visible = false;
+        HideCursor();
 
         playerController.playerControls.Enable();
 

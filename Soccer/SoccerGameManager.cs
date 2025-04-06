@@ -1,3 +1,22 @@
+/*
+
+
+SoccerGameManager.cs
+
+This script handles the logic for the soccer game.
+
+Sets up game.
+Handles Goal Scores and Out of Bounds.
+Calculates and assigns the player closest to ball.
+Handles Pausing and Resetting Players.
+Handles starting and ending the game.
+
+
+
+
+*/
+
+
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -13,67 +32,63 @@ using Unity.VisualScripting;
 
 
 public class SoccerGameManager : MonoBehaviour
-{   
+{  
+
+    private System.Random random = new System.Random();
+
     //References
-    //public List<OnlinePlayerController> UserPlayers;
     private MenuManager menuManager;
-    //Multiplayer: Need to change to an array of players.
-    [SerializeField] private MixamoPlayerController Player;
-    public bool multiplayerMode;
-    [SerializeField] private List<MixamoPlayerController> multiplayers;
     private PlayerInventory playerInventory;
     private SquadManager squadManager;
     private SaveManager saveManager;
     private Powerups powerups;
     private SoccerGameAudio soccerGameAudio;
 
-    [SerializeField] private GameObject GameCamera;
+    //public List<OnlinePlayerController> UserPlayers;
+
+    //Multiplayer: Need to change to an array of players.
+    [SerializeField] private MixamoPlayerController Player;
+
+    public bool multiplayerMode;
+    [SerializeField] private List<MixamoPlayerController> multiplayers;
+
     
 
-
-
-
+    [SerializeField] private GameObject GameCamera;
+    
+    //NPCS
     [SerializeField] private GameObject Npcs;
-    private List<GameObject> town;
+    
 
-
+    //Players
     [SerializeField] public List<EnemyAIController> enemyPlayers;
     [SerializeField] public List<EnemyAIController> friendlyPlayers;
     [SerializeField] private GoalieController enemyGoalie, friendlyGoalie;
+    [SerializeField] public GameObject HomePlayers, AwayPlayers;
+    public GameObject PassingToPlayer;
+    public Transform friendlyNearestBall;
 
+    //Field and Ball
     [SerializeField] private GameObject Field;
     [SerializeField] private GameObject Ball;
     private Rigidbody ballRb;
 
+    private List<GameObject> town;
+    public GameObject Fences;
+    [SerializeField] GameObject Boundaries;
 
 
-
-
+    //UI
+    //MOVE TO UI HANDLER
     [SerializeField] private GameObject SoccerGameUI, OfferGameUI, ResultUI;
     private TextMeshProUGUI offerGameText;
     [SerializeField] private TextMeshProUGUI homeScoreText, awayScoreText, timeLeftText, resultText, activePlayerText, goalScoredText;
-    [SerializeField] public GameObject HomePlayers, AwayPlayers;
-    [SerializeField] private List<GameObject> GoalScoredFX = new List<GameObject>();
-    public GameObject Fences;
-    public GameObject PassingToPlayer;
-    public Transform friendlyNearestBall;
-
-
-
-
-
     
 
+    [SerializeField] private List<GameObject> GoalScoredFX = new List<GameObject>();
 
-
-
-
-
-    private System.Random random = new System.Random();
-
-
-
-
+   
+    
     //Variables
     public float[] enemyDistancesToBall;
     public float[] friendlyDistancesToBall;
@@ -100,7 +115,11 @@ public class SoccerGameManager : MonoBehaviour
 
     public Vector3 gameCameraPosition;
 
-    [SerializeField] GameObject Boundaries;
+
+    //Events
+    public event Action<bool> OnGoalScored;
+
+    
 
 
     public enum GameState{
@@ -113,7 +132,7 @@ public class SoccerGameManager : MonoBehaviour
 
 
 
-
+    //Sets Up References
     void Start(){
         transform.GetComponent<PackManager>().GivePack("Gold");
 
@@ -139,13 +158,18 @@ public class SoccerGameManager : MonoBehaviour
     }
 
 
-
+    /// <summary>
+    /// Called when goal is scored.
+    /// </summary>
     public async void GoalScored(bool homeTeam){
+
+        
 
         //Set User Attacking To False. User is always home team for now.
         homeTeamAttacking = false;
 
-        
+        //Should really be an event
+        // that other scripts subscribe to.
         goalScoredText.transform.parent.gameObject.SetActive(true);
 
         ballRb.velocity=Vector3.zero;
@@ -159,12 +183,14 @@ public class SoccerGameManager : MonoBehaviour
 
 
         if(homeTeam){
-            homeScore+=1;
-            homeScoreText.text = "Home: " + homeScore;
+            homeScore++;
+            //homeScoreText.text = "Home: " + homeScore;
         }else{
-            awayScore+=1;
-            awayScoreText.text = "Away: " + awayScore;
+            awayScore++;
+            //awayScoreText.text = "Away: " + awayScore;
         }
+
+        OnGoalScored?.Invoke(homeTeam);
 
         var goalInfo = "Goal Scored By: " + lastToTouchBall + "! Home: " + homeScore + ", Away: " + awayScore;
         goalsScored.Add(goalInfo);
@@ -185,6 +211,8 @@ public class SoccerGameManager : MonoBehaviour
         
         await Task.Delay(5000);
         goalScoredText.transform.parent.gameObject.SetActive(false);
+
+        
         
 
         await Task.CompletedTask;
@@ -192,6 +220,9 @@ public class SoccerGameManager : MonoBehaviour
 
     }
 
+    /// <summary>
+    /// Checks Closest Player to Ball
+    /// </summary>
     public async void CheckClosestToBall(){
         
         for(int i=0;i<enemyPlayers.Count;i++){
@@ -203,22 +234,28 @@ public class SoccerGameManager : MonoBehaviour
             friendlyPlayers[i].closestToBall = false;
         }
 
+
+        //For Multiplayer
+
         //if(UserPlayers.Count == 2){
         //    enemyDistancesToBall[4] = (UserPlayers[1].transform.position - Ball.transform.position).magnitude;
         //}
+        //friendlyDistancesToBall[4] = (Player.transform.position - Ball.transform.position).magnitude;
 
+        //Set Enemy Closest To Ball
         var closestToBall = Array.IndexOf(enemyDistancesToBall, enemyDistancesToBall.Min());
         enemyPlayers[closestToBall].closestToBall = true;
 
-        
-        
-
-        //friendlyDistancesToBall[4] = (Player.transform.position - Ball.transform.position).magnitude;
-
+        //Set Friendly Closest to Ball.
         closestToBall = Array.IndexOf(friendlyDistancesToBall, friendlyDistancesToBall.Min());
         friendlyPlayers[closestToBall].closestToBall = true;
 
         friendlyNearestBall = friendlyPlayers[closestToBall].transform;
+
+
+
+        // Testing Code for switching players.
+
         //IF closest to ball changes, player control changes
         //if(friendlyNearestBall != friendlyPlayers[closestToBall].transform &&
         //friendlyNearestBall != null && homeTeamAttacking){
@@ -245,18 +282,15 @@ public class SoccerGameManager : MonoBehaviour
 
         //friendlyNearestBall = friendlyPlayers[closestToBall].transform;
 
-        
-
-
-
-        
-
         await Task.CompletedTask;
         
-        
-
     }
 
+
+    /// <summary>
+    /// Pauses the AI Controlled Players.
+    /// So that they cannot move.
+    /// </summary>
     public async void PausePlayers(bool canMove){
         
         if(canMove){
@@ -268,7 +302,7 @@ public class SoccerGameManager : MonoBehaviour
         
         
         for(int i=0;i<enemyPlayers.Count;i++){
-            Debug.Log("Enemy Player " + i + ". " + enemyPlayers[i]);
+            //Debug.Log("Enemy Player " + i + ". " + enemyPlayers[i]);
             var controller = enemyPlayers[i].GetComponent<MixamoPlayerController>();
 
             if (controller != null && controller.isActiveAndEnabled){}
@@ -302,6 +336,12 @@ public class SoccerGameManager : MonoBehaviour
         await Task.CompletedTask;
     }
 
+
+    /// <summary>
+    /// Resets All Players Back to their positions.
+    /// For after a goal is scored.
+    /// Or at the start of the game.
+    /// </summary>
     private void ResetPlayers(){
         for(int i=0;i<enemyPlayers.Count;i++){
             enemyPlayers[i].gameObject.transform.localPosition = Vector3.zero + new Vector3(-30.0f,-0.68f,UnityEngine.Random.Range(-20.0f,20.0f));
@@ -316,13 +356,19 @@ public class SoccerGameManager : MonoBehaviour
             
         }
         
-        
+        //Multiplayer logic
 
         //if(UserPlayers.Count == 2){
         //    UserPlayers[1].transform.position = Field.transform.position + new Vector3(-30.0f,0f,UnityEngine.Random.Range(-20.0f,20.0f));
         //}
     }
 
+
+
+    /// <summary>
+    /// Resets the ball.
+    /// Should be handled by the ball controller.
+    /// </summary>
     private async void ResetBall(){
 
         ballRb.isKinematic = false;
@@ -340,12 +386,15 @@ public class SoccerGameManager : MonoBehaviour
 
 
 
-
-
-
-
-
+    /// <summary>
+    /// Called at start of game.
+    /// Sets Camera.
+    /// Sets Open World Objects inactive.
+    /// </summary>
     public async void StartGame(){
+
+
+        //Multiplayer Logic
 
         //Set Users
         //UserPlayers = FindObjectsOfType<OnlinePlayerController>().ToList();
@@ -423,14 +472,10 @@ public class SoccerGameManager : MonoBehaviour
 
 
 
-
-
-
-
-
-
-
-
+    /// <summary>
+    /// Resets Scoreboard
+    /// Should be moved to UI Script.
+    /// </summary>
     private void ResetScoreboard(){
         homeScore = 0;
         awayScore = 0;
@@ -439,18 +484,22 @@ public class SoccerGameManager : MonoBehaviour
         awayScoreText.text = "Away: 0";
     }
 
+
+    /// <summary>
+    /// Starts the game clock.
+    /// Accounts for if the game is paused.
+    /// </summary>
     private async void StartClock(){
         
         while(secondsLeft>0){
 
-            
-                await Task.Delay(1000);
-                if(menuManager.isPaused == false){
-                    secondsLeft--; 
+            await Task.Delay(1000);
+            if(menuManager.isPaused == false){
+                secondsLeft--; 
 
-                    var timeAmount = TimeSpan.FromSeconds(secondsLeft);
-                    timeLeftText.text = timeAmount.ToString(@"m\:ss");
-                }      
+                var timeAmount = TimeSpan.FromSeconds(secondsLeft);
+                timeLeftText.text = timeAmount.ToString(@"m\:ss");
+            }      
 
             
         }
@@ -461,13 +510,9 @@ public class SoccerGameManager : MonoBehaviour
     }
 
 
-
-
-
-
-
-
-
+    /// <summary>
+    /// Called at the end of the game.
+    /// </summary>
     private async void EndGame(){
 
         
@@ -492,20 +537,11 @@ public class SoccerGameManager : MonoBehaviour
             
         // }
 
-
-
-
-        
-        
-
-
         HomePlayers.SetActive(false);
         AwayPlayers.SetActive(false);
 
         ToggleTown(true);
 
-
-        
         await ShowResult();
 
         powerups.enabled = false;
@@ -526,7 +562,6 @@ public class SoccerGameManager : MonoBehaviour
 
         //Change Players
         //Player.EnablePlayer(Player.transform);
-        
 
         SoccerGameUI.SetActive(false);
 
@@ -546,12 +581,10 @@ public class SoccerGameManager : MonoBehaviour
 
 
 
-
-
-
-
-
-
+    /// <summary>
+    /// Shows Game Result.
+    /// Should be moved to be handled by UI Script.
+    /// </summary>
     private async Task ShowResult(){
         ResultUI.SetActive(true);
 
@@ -601,7 +634,10 @@ public class SoccerGameManager : MonoBehaviour
 
 
 
-
+    /// <summary>
+    /// Called when player collides with referee
+    /// Should be moved to referee script.
+    /// </summary>
     public async void OfferGame(GameObject Ref){
         
         var referee = Ref.GetComponent<Referee>();
@@ -617,16 +653,16 @@ public class SoccerGameManager : MonoBehaviour
 
             offerGameText.text = $"Play Game For {referee.gamePrice} Coins.";
 
-            //Cursor.lockState = CursorLockMode.Confined;
-            //Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.Confined;
+            Cursor.visible = true;
             MenuManager.Instance.ShowCursor();
             //Mouse.current.WarpCursorPosition(new Vector2(960f,100f));
         }
 
-        //await Task.Delay(5000);
+        await Task.Delay(5000);
 
-        //Cursor.lockState = CursorLockMode.Locked;
-        //Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
         MenuManager.Instance.HideCursor();
 
         //OfferGameUI.SetActive(false);
@@ -637,6 +673,10 @@ public class SoccerGameManager : MonoBehaviour
     }
 
 
+    /// <summary>
+    /// Loads stats to game players from the player's squad.
+    /// Players are stored in the player's squad with unique playerAttributes.
+    /// </summary>
     private void LoadPlayersFromSquad(){
         
         if(squadManager.players == null){return;}
@@ -686,6 +726,12 @@ public class SoccerGameManager : MonoBehaviour
         
     }
 
+
+    /// <summary>
+    /// Turns on/off buildings in the town
+    /// For performance during gameplay.
+    /// Could be moved to building manager.
+    /// </summary>
     public async void ToggleTown(bool turnOn){
 
 
@@ -698,7 +744,11 @@ public class SoccerGameManager : MonoBehaviour
         await Task.CompletedTask;
     }
 
-
+    /// <summary>
+    /// Called when ball goes behind the goal out of bounds.
+    /// Resets the ball to be easily picked up and thrown by the goalie.
+    /// Could move the ball control to its own script.
+    /// </summary>
     public async void GoalKick(){
 
         isGoalKick = true;
@@ -734,7 +784,7 @@ public class SoccerGameManager : MonoBehaviour
         
 
 
-        //If user is home team, set hometeamattacking false
+        //If user is home team, set homeTeamAttacking false
         if(Player.isHomeTeam){
             homeTeamAttacking = false;
         }else{
@@ -750,10 +800,6 @@ public class SoccerGameManager : MonoBehaviour
         
     
        
-
-        
-
-    
         //Move all players outside of the goalkeeper box.
         for(int i=0;i<friendlyPlayers.Count;i++){
             var index = i;
@@ -793,11 +839,6 @@ public class SoccerGameManager : MonoBehaviour
         }
         
 
-       
-
-       
-        
-
         isGoalKick = false;
 
         await Task.CompletedTask;
@@ -811,7 +852,6 @@ public class SoccerGameManager : MonoBehaviour
     /// Make Them throw it in.
     /// Or Allow the user to throw in.
     /// </summary>
-    /// <param name="playerName"></param>
     public async void ThrowIn(Vector3 ballPositionForThrowIn){
 
         PausePlayers(false);
@@ -851,7 +891,9 @@ public class SoccerGameManager : MonoBehaviour
     }
 
     
-
+    /// <summary>
+    /// Should be moved to UI Script
+    /// </summary>
     public async void UpdatePlayerUI(string playerName){
         activePlayerText.text = playerName;
         await Task.CompletedTask;
@@ -860,7 +902,9 @@ public class SoccerGameManager : MonoBehaviour
 
 
 
-    
+    /// <summary>
+    /// Should be moved to UI Script.
+    /// </summary>
     private static async Task FadeAsync(float start, float end, float duration, CanvasGroup canvasGroup)
     {
         

@@ -1,3 +1,29 @@
+/*
+
+
+MixamoPlayerController.cs
+
+This script handles the logic for controlling a player.
+
+Methods:
+
+ShootBall();
+TouchBall();
+PassBall();
+LoftedPass();
+ClearBall();
+SlideTackle();
+
+
+
+
+*/
+
+
+
+
+
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -19,23 +45,36 @@ public class MixamoPlayerController : MonoBehaviour
     public int playerIndex;
     private DataCollector dataCollector;
 
+
+
+
     //References
+
+    //Animation
     public Animator playerAnimator;
     //[SerializeField] private AnimatorController normalAnim;
 
+
+    //Physics
     private Rigidbody playerRb;
     [SerializeField] private BoxCollider boxC;
+    [SerializeField] private Rigidbody ballRb;
+    [SerializeField] private SoccerBall soccerBall;
+
+    //Camera
     private GameObject camera;
     public GameCamera gameCamera;
     [SerializeField] private CinemachineFreeLook lookCamera;
+
+    //Gamepad
     public Gamepad gamepad;
 
     //private UserPlayerAudio userAudio;
+
     private Coroutine staminaCoroutine;
 
 
-    [SerializeField] private Rigidbody ballRb;
-
+    //AI
     private EnemyAIController aiController;
     private NavMeshAgent navAgent;
 
@@ -46,13 +85,10 @@ public class MixamoPlayerController : MonoBehaviour
     [SerializeField] private GameObject MagicSpell;
     [SerializeField] private Slider ShotPowerSlider;
     [SerializeField] private GameObject AttackingGoal;
+
     [SerializeField] private Vector3 ballShootPosition = new Vector3(0.37f,0.23f,0.4f);
     [SerializeField] private int shotDelayTime = 300;
 
-
-
-
-    [SerializeField] private SoccerBall soccerBall;
 
     [SerializeField] private Transform head;
 
@@ -63,6 +99,8 @@ public class MixamoPlayerController : MonoBehaviour
 
 
     //Variables
+    
+    //Attributes
     private string playerName;
     private float kickForce;
     public float shotForce = 2.5f;
@@ -112,19 +150,8 @@ public class MixamoPlayerController : MonoBehaviour
 
     
   
-    
-    
-
-
-
     //INPUTS
     public InputActionMap playerControls;
-
-    //Joystick Functionality
-    public Joystick jsMovement;
-    public Vector3 direction;
-    
-    
 
     private InputAction fpsMovement, thirdMovement, run, jump, kick, powerKick, switchCamera, slideTackle, punch, block, boost, requestPass, changePlayer, loftedKick;
     
@@ -167,17 +194,22 @@ public class MixamoPlayerController : MonoBehaviour
 
     }
     
+
+    /// <summary>
+    /// Detects Gamepad.
+    /// Sets Up References.
+    /// </summary>
     void Start()
     {
 
         if(!isHomeTeam)isPlayingGame=true;
 
-        dataCollector = GetComponent<DataCollector>();
+        //dataCollector = GetComponent<DataCollector>();
 
         InitializeInputs();
         originalRunSpeed = runSpeed;
         
-        //ballRb = GameObject.FindGameObjectWithTag("Ball").transform.GetComponent<Rigidbody>();
+        ballRb = GameObject.FindGameObjectWithTag("Ball").transform.GetComponent<Rigidbody>();
         
 
         CurrentField = GameObject.FindGameObjectWithTag("Field").transform;
@@ -185,8 +217,9 @@ public class MixamoPlayerController : MonoBehaviour
 
         //Cursor.visible = false;
         //Cursor.lockState = CursorLockMode.Locked;
+        MenuManager.Instance.HideCursor();
 
-        //lookCamera = transform.GetChild(0).gameObject.transform.GetComponent<CinemachineFreeLook>();
+        lookCamera = transform.GetChild(0).gameObject.transform.GetComponent<CinemachineFreeLook>();
 
         
         
@@ -214,7 +247,9 @@ public class MixamoPlayerController : MonoBehaviour
        
     }
 
-
+    /// <summary>
+    /// Sets Up Player Input Controls.
+    /// </summary>
     private void InitializeInputs(){
 
 
@@ -294,7 +329,10 @@ public class MixamoPlayerController : MonoBehaviour
         
     }
 
-
+    /// <summary>
+    /// Handles Kick Power Timer
+    /// Handles Animation Based on Input
+    /// </summary>
     void Update()
     {
         if(isKickTimer){
@@ -349,6 +387,19 @@ public class MixamoPlayerController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Moves the player.
+    /// If Playing the game:
+    /// The player moves towards the ball if he is:
+    /// a) closest to the ball OR
+    /// b) last to touch the ball
+    /// 
+    /// The player also will loop behind the ball for certain angles
+    /// to touch/kick it properly.
+    /// 
+    /// If not playing the game:
+    /// Player can move freely in the world.
+    /// </summary>
     private void FixedUpdate(){
         
         
@@ -368,9 +419,8 @@ public class MixamoPlayerController : MonoBehaviour
                 moveDirection = gamepad.leftStick.ReadValue();
             }
             
-            //var dir = (gameCamera.transform.right * moveDirection.x) + (-gameCamera.transform.forward * moveDirection.y);
-            var dir = (gameCamera.transform.right * direction.x) + (-gameCamera.transform.forward * direction.y);
-            
+            var dir = (gameCamera.transform.right * moveDirection.x) + (-gameCamera.transform.forward * moveDirection.y);
+         
             
         
             //var viewDir = camera.transform.position - new Vector3(transform.position.x,transform.position.y,transform.position.z);
@@ -478,7 +528,12 @@ public class MixamoPlayerController : MonoBehaviour
 
     
 
-
+    /// <summary>
+    /// Detects collisions between the player
+    /// If player hits the ball:
+    /// The ball gets touched based on the selected input made by the user.
+    /// (Touch, Pass, Lofted Pass, Shot)
+    /// </summary>
     public void OnCollisionEnter(Collision other){
 
         if(enabled==false){return;}
@@ -940,19 +995,12 @@ public class MixamoPlayerController : MonoBehaviour
 
     public async void OnLofted(){
 
-        
-        
-        
         //if(!playerHasBall){
         //    kickTime = 0f;
         //    return;
         //}
 
-        
         //ballRb.transform.localPosition = new Vector3(0f,0.25f,0.5f);
-
-        
-
 
         Debug.Log("Kicked Ball");
         
